@@ -1,0 +1,7 @@
+firebase_storage
+acc_files
+videos
+node_modules
+build
+.env
+output
