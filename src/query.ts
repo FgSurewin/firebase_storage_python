@@ -1,3 +1,9 @@
+import Downloader from "nodejs-file-downloader";
+import cliProgress from "cli-progress";
+import colors from "ansi-colors";
+import fs from "fs";
+import path from "path";
+import glob from "glob";
 import {
   ref,
   listAll,
@@ -6,11 +12,6 @@ import {
 } from "firebase/storage";
 import { storage } from "./firebase";
 import { writeFile } from "fs";
-import Downloader from "nodejs-file-downloader";
-import cliProgress from "cli-progress";
-import colors from "ansi-colors";
-import fs from "fs";
-import path from "path";
 
 interface FileNameAndUrl {
   fileName: string;
@@ -53,25 +54,25 @@ export class Query {
     this.acc_and_videos = [];
   }
 
-  /* --------------------------- Initialize & utils --------------------------- */
-  public async init() {
-    await this.checkFolderExists(
-      path.join(this.rootDirectory, this.outputFolderName)
+  /* ---------------------------------- Utils --------------------------------- */
+  public async getAllFilesOrganizedInformation() {
+    console.log("-> Querying the information  all files...");
+    await this.queryAllUsers();
+    await this.queryAllFiles();
+    console.log("-> Done!");
+    const msg_1 = await this.writeToFile(
+      JSON.stringify(this.output),
+      path.join(this.rootDirectory, this.outputFolderName, "output.json")
     );
-    // console.log("Querying all files...");
-    // await this.queryAllUsers();
-    // await this.queryAllFiles();
-    // console.log("Done!");
-    // const msg_1 = await this.writeToFile(
-    //   JSON.stringify(this.output),
-    //   path.join(
-    //     this.rootDirectory,
-    //     this.outputFolderName,
-    //     "output.json"
-    //   )
-    // );
-    // console.log(msg_1);
+    console.log(msg_1);
+  }
+
+  public async getAllFilesInformation() {
+    console.log(
+      "-> Querying the information of all files in one single array..."
+    );
     await this.getFileNameAndUrl();
+    console.log("-> Done!");
     const msg_2 = await this.writeToFile(
       JSON.stringify(this.acc_and_videos),
       path.join(this.rootDirectory, this.outputFolderName, "all_files.json")
@@ -84,6 +85,18 @@ export class Query {
     const newNameArr = newName.split(".");
     const finalName = newNameArr[0] + "-" + newNameArr[1] + "." + newNameArr[2];
     return finalName;
+  }
+
+  public Glob(pattern: string): Promise<string[]> {
+    return new Promise((resolve, reject) => {
+      glob(pattern, (err, files) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(files);
+        }
+      });
+    });
   }
 
   /* ---------------------------------- Users --------------------------------- */
@@ -174,9 +187,7 @@ export class Query {
   }
 
   public async getFileNameAndUrl() {
-    console.log("Querying all files in one single array...");
     await this.getFileNameAndUrlRecursively(this.storageRef);
-    console.log("Done!");
     return this.acc_and_videos;
   }
 
@@ -190,14 +201,14 @@ export class Query {
           reject(err);
         } else {
           resolve(
-            `The file has been saved, Please check the ${outputFileName} file!`
+            `-> The file has been saved, Please check the ${outputFileName} file!`
           );
         }
       });
     });
   }
 
-  public checkFolderExists(directory: string) {
+  public checkFolderExists(directory: string): Promise<boolean> {
     return new Promise((resolve, reject) => {
       fs.access(directory, fs.constants.F_OK, async (err) => {
         if (err) {
@@ -205,7 +216,7 @@ export class Query {
             if (err) {
               console.log(err);
             }
-            console.log(`"${directory}" created!`);
+            console.log(`-> "${directory}" created!`);
             resolve(false);
           });
         } else {
@@ -218,6 +229,58 @@ export class Query {
   /* ------------------------------------ - ----------------------------------- */
 
   /* ------------------------------- Downloader ------------------------------- */
+
+  public async download() {
+    const exists = await this.checkFolderExists(
+      path.join(this.rootDirectory, this.outputFolderName)
+    );
+    if (!exists) {
+      console.log(
+        "-> Since the output folder doesn't exist, we will create one and download all files!"
+      );
+      await this.getAllFilesInformation();
+      await this.downloadAllFiles();
+    } else {
+      console.log(
+        "-> Folder already exists, we will download only the updated files. :)"
+      );
+      await this.getAllFilesInformation();
+      await this.downloadUpdatedFiles();
+    }
+  }
+
+  public async downloadUpdatedFiles() {
+    console.log(
+      "-> Start scanning your output folder and check which updated files you need to download..."
+    );
+    const pattern = `${this.rootDirectory}/${this.outputFolderName}/*/*/*.@(csv|MOV)`;
+    const historyFiles = await this.Glob(pattern);
+    const historyFilesNames = historyFiles.map((file) => file.split("/").pop());
+    const updatedFiles = this.acc_and_videos.filter((item) => {
+      return !historyFilesNames.some((fileName) => fileName === item.fileName);
+    });
+    if (updatedFiles.length > 0) {
+      for (let idx = 0; idx < updatedFiles.length; idx++) {
+        const directory = path.join(
+          this.rootDirectory,
+          this.outputFolderName,
+          updatedFiles[idx].userName,
+          updatedFiles[idx].prefix
+        );
+        const fileName = updatedFiles[idx].fileName;
+        await this.checkFolderExists(directory);
+        await this.downloadFile(
+          updatedFiles[idx].url,
+          directory,
+          fileName,
+          idx
+        );
+      }
+    } else {
+      console.log("-> No new files to download!");
+    }
+  }
+
   public async downloadFile(
     url: string,
     directory: string,
