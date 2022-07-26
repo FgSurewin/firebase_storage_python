@@ -1,4 +1,8 @@
+import glob from "glob";
 import { Query } from "./query";
+import { config } from "./config";
+
+const { storageDirectory, rootDirectory, outputFolderName } = config;
 
 async function main() {
   /* -------------------------------------------------------------------------- */
@@ -25,16 +29,15 @@ async function main() {
    */
 
   /* ------------------------------ Basic Usage: ------------------------------ */
-  const queryInstance = new Query();
+  const queryInstance = new Query(
+    storageDirectory,
+    rootDirectory,
+    outputFolderName
+  );
   await queryInstance.init();
 
-  /* ----------------------------- Advanced Usage: ---------------------------- */
-  const allFiles = await queryInstance.getFileNameAndUrl();
-  queryInstance.writeToFile(
-    JSON.stringify(allFiles),
-    "./output/all_files.json"
-  );
-  console.log("all_files.json -> Done");
+  /* -------------------------------- Download -------------------------------- */
+  await queryInstance.downloadAllFiles();
 }
 
 main();
