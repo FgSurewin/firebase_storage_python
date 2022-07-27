@@ -29,9 +29,12 @@ export const config = {
 ```
 
 
-## 4. Now, let's run the app
+## 4. Now, let's run the tool
 Now, you are good to go. Open your terminal and type the following statement to run the tool.
 ```bash
+# Before you run the tool, you have to install the required packages first.
+npm ci
+# Once you install all the packages, you can run the tool now.
 npm run dev
 ```
 When you see phrase `-> End!`, you can press `ctrl+C`/`cmd+C` to exit the debug mode. 
