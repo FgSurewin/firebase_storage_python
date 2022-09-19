@@ -21,17 +21,6 @@ const firebaseConfig = {
 	measurementId: process.env.measurementId,
 };
 
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-// const firebaseConfig = {
-// 	apiKey: "AIzaSyDzTRdoOMnCtqdYpRThfity0wE6WTNlufw",
-// 	authDomain: "sidewalkproject-cb352.firebaseapp.com",
-// 	projectId: "sidewalkproject-cb352",
-// 	storageBucket: "sidewalkproject-cb352.appspot.com",
-// 	messagingSenderId: "1030671248440",
-// 	appId: "1:1030671248440:web:a50a7614077e3783898acd",
-// 	measurementId: "G-C7FB4CSHBX",
-// };
-
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 // const analytics = getAnalytics(app);
