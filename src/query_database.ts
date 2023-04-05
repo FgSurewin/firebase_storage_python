@@ -84,7 +84,10 @@ export class Query_Firestore extends Query_Base {
     });
     const newFiles: IRecord[] = [];
     files.forEach((file) => {
-      if (file.createdAt !== undefined) {
+      if (
+        file.createdAt !== undefined &&
+        file.videoInfo.videoURL.length === file.sensorDataURL.length
+      ) {
         const videoURLs = file.videoInfo.videoURL;
         const sensorDataURLs = file.sensorDataURL;
         const category = file.category;
