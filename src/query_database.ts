@@ -41,12 +41,14 @@ export class Query_Firestore extends Query_Base {
   public rootDirectory: string;
   public outputFolderName: string;
   public users: string[];
+  public isFusionMode: boolean = false;
 
   constructor(
     storageDirectory: string,
     rootDirectory: string,
     outputFolderName: string,
-    users: string[]
+    users: string[],
+    isFusionMode: boolean = false
   ) {
     super();
     this.db = db;
@@ -55,6 +57,7 @@ export class Query_Firestore extends Query_Base {
     this.rootDirectory = rootDirectory;
     this.outputFolderName = outputFolderName;
     this.users = users;
+    this.isFusionMode = isFusionMode;
   }
 
   public async query(user: string) {
@@ -66,8 +69,70 @@ export class Query_Firestore extends Query_Base {
       // TODO Query all files
       console.log("-> Downloading all files");
     } else {
-      await this.queryOneUser(user);
+      if (this.isFusionMode) {
+        // TODO Query one user with fusion mode
+        console.log("-> Downloading one user with fusion mode");
+        await this.queryOneUserWithFusionMode(user);
+      } else {
+        // TODO Query one user without fusion mode
+        console.log("-> Downloading one user without fusion mode");
+        await this.queryOneUser(user);
+      }
     }
+  }
+
+  public async queryOneUserWithFusionMode(user: string) {
+    const userRef = collection(db, "users", "user_data", user);
+    const usersnap = await getDocs(userRef);
+    const files = usersnap.docs.map((doc) => doc.data() as UserData);
+    // TODO Check if the files are already downloaded
+    const VideoPattern = `${this.rootDirectory}/${this.outputFolderName}/${user}/*.MOV`;
+    const oldVideoFiles = await this.Glob(VideoPattern);
+    // Get filenames
+    const oldVideoFilesNames = oldVideoFiles.map((file) => {
+      const filename = file.split("/").pop() as string;
+      return filename;
+    });
+    const newFiles: IRecord[] = [];
+    files.forEach((file) => {
+      if (file.createdAt !== undefined) {
+        const accFilePaths = this.getFilePaths(file.sensorDataURL, "acc");
+        if (file.videoInfo.videoURL.length === accFilePaths.length) {
+          const videoURLs = file.videoInfo.videoURL;
+          const sensorDataURLs = accFilePaths;
+          const category = file.category;
+          const length = file.videoInfo.videoURL.length;
+          for (let i = 0; i < length; i++) {
+            const videoFileName = videoURLs[i].split("/").pop() as string;
+            if (
+              !oldVideoFilesNames.includes(this.changeFileame(videoFileName))
+            ) {
+              newFiles.push({
+                category: category,
+                videoURL: videoURLs[i],
+                sensorDataURL: sensorDataURLs[i],
+              });
+            }
+          }
+        }
+      }
+    });
+    console.log(
+      `-> File Report |Total: ${newFiles.length} | New: ${newFiles.length} | Exist: ${oldVideoFiles.length}`
+    );
+    // TODO Download new files
+    await this.downloadAllFiles(newFiles, user);
+  }
+
+  public getFilePaths(filePaths: string[], fileType: string) {
+    // Create RegExp to detect acc files
+    const accRegExp = new RegExp(".*" + fileType + ".*\\.csv$");
+    // Filter acc files
+    const accFilePath = filePaths.filter((filePath) => {
+      const fileName = filePath.split("/").pop() as string;
+      return accRegExp.test(fileName);
+    });
+    return accFilePath;
   }
 
   public async queryOneUser(user: string) {
